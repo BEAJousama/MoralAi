@@ -14,11 +14,12 @@ function formatTimeAgo(iso: string): string {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffM = Math.floor(diffMs / 60000);
-  const diffH = Math.floor(diffMs / 3600000);
   const diffD = Math.floor(diffMs / 86400000);
-  if (diffM < 60) return `${diffM}m`;
-  if (diffH < 24) return `${diffH}h`;
-  return `${diffD}d`;
+  if (diffM < 1) return 'Just now';
+  if (diffM < 60) return `${diffM}m ago`;
+  if (diffD < 1) return `${diffM}m ago`;
+  if (diffD < 7) return `${diffD}d ago`;
+  return `${diffD}d ago`;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ authToken, onViewUrgent }) => {

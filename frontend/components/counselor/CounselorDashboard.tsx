@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAppointments, updateAppointment, getAvailability, setAvailability, type Appointment, type AvailabilityWindow } from '../../services/authService';
 import { Card } from '../Card';
 import { Button } from '../Button';
-import { Calendar, Clock, User, Loader2, LogOut, CheckCircle, XCircle, FileText, UserPlus, Pencil, Settings2 } from 'lucide-react';
+import { Calendar, Clock, User, Loader2, LogOut, CheckCircle, FileText, UserPlus, Pencil, Settings2 } from 'lucide-react';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -151,7 +151,7 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+      <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-20 shadow-sm">
         <div className="max-w-4xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <Calendar size={24} className="text-sage shrink-0" />
@@ -167,7 +167,7 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="max-w-4xl mx-auto px-3 sm:px-6 pt-20 sm:pt-24 pb-4 sm:pb-8 space-y-6 sm:space-y-8 transition-all duration-300">
         <p className="text-gentleBlue-text">
           Accept requests, reschedule, or mark appointments done. Your report is sent to the student only.
         </p>
@@ -301,16 +301,6 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
                         >
                           <CheckCircle size={16} className="mr-1" />
                           Done
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => openOutcomeModal(a, 'no_show')}
-                          disabled={!!outcomeModal}
-                          className="w-full sm:w-auto border-amber-risk text-amber-text hover:bg-amber-bg"
-                        >
-                          <XCircle size={16} className="mr-1" />
-                          Missed
                         </Button>
                       </div>
                     </li>

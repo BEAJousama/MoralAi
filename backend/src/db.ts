@@ -212,6 +212,8 @@ export interface NotificationRow {
   created_at: string;
 }
 
+
+
 function seedAdminIfNeeded() {
   const row = db.prepare("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1").get();
   if (!row) {
@@ -550,6 +552,15 @@ export function listAppointments(filters: {
   return rows;
 }
 
+/** Mark all scheduled appointments whose scheduled_at has passed as no_show. Call before listing when needed. */
+export function markPastScheduledAppointmentsAsMissed(): number {
+  const database = initDb();
+  const result = database
+    .prepare("UPDATE appointments SET status = 'no_show', updated_at = datetime('now') WHERE status = 'scheduled' AND scheduled_at < datetime('now')")
+    .run();
+  return result.changes;
+}
+
 export function getAppointmentById(id: number): (AppointmentRow & { student_username: string; assigned_to_username?: string | null }) | undefined {
   const database = initDb();
   return database
@@ -688,7 +699,8 @@ export function getAvailableSlots(opts: {
 }): SlotOption[] {
   const database = initDb();
   const { date, counselorId, type } = opts;
-  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+  const [y, mo, d] = date.split('-').map(Number);
+  const dayOfWeek = new Date(y, mo - 1, d).getDay();
   const dateStart = date + 'T00:00:00';
   const dateEnd = date + 'T23:59:59';
 
@@ -788,6 +800,13 @@ export function markNotificationRead(id: number, userId: number): boolean {
   const database = initDb();
   const result = database.prepare('UPDATE notifications SET read_at = datetime(\'now\') WHERE id = ? AND user_id = ?').run(id, userId);
   return result.changes > 0;
+}
+
+/** Mark all notifications as read for a user. Returns number of rows updated. */
+export function markAllNotificationsRead(userId: number): number {
+  const database = initDb();
+  const result = database.prepare('UPDATE notifications SET read_at = datetime(\'now\') WHERE user_id = ? AND read_at IS NULL').run(userId);
+  return result.changes;
 }
 
 export function getUnreadNotificationCount(userId: number): number {

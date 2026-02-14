@@ -29,6 +29,7 @@ import {
   createNotification,
   listNotificationsForUser,
   markNotificationRead,
+  markAllNotificationsRead,
   getUnreadNotificationCount,
   type UserRole,
   type RiskLevel,
@@ -44,40 +45,30 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-pro';
 const gemini = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
-
 /** User-facing message for chat/API errors (no technical details). */
 const CHAT_ERROR_USER_MESSAGE =
   "I'm on a little break right now — think of me as napping or on leave 🌙 Maybe I had too much coffee and need a reset. Try again in a minute, or use the form to complete your check-in. I'll be back soon!";
 
-/** Turn Gemini API errors (e.g. 429 quota) into HTTP status; message is always user-friendly. */
-function geminiErrorToResponse(err: unknown): { status: number; message: string } {
-  const msg = err instanceof Error ? err.message : String(err);
-  const is429 = msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota');
-  const status = is429 ? 429 : 500;
-  return { status, message: CHAT_ERROR_USER_MESSAGE };
+/** Turn Gemini API errors into HTTP response; message is always user-friendly. */
+function geminiErrorToResponse(_err: unknown): { status: number; message: string } {
+  return { status: 500, message: CHAT_ERROR_USER_MESSAGE };
 }
 
-const RETRY_DELAY_MS = 45_000; // 45s when API says "retry in 40s"
-
-/** Call Gemini generateContent; on 429, wait and retry once */
-async function generateContentWithRetry(
+/** Call Gemini generateContent (single request, no retries). */
+async function generateContent(
   params: Parameters<InstanceType<typeof GoogleGenAI>['models']['generateContent']>[0]
 ): Promise<{ text: string }> {
-  try {
-    const response = await gemini!.models.generateContent(params);
-    return { text: (response.text ?? '').trim() };
-  } catch (err) {
-    const status = (err as { status?: number }).status;
-    if (status === 429) {
-      console.log('[Gemini] 429 quota — waiting', RETRY_DELAY_MS / 1000, 's then retrying once');
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-      const response = await gemini!.models.generateContent(params);
-      return { text: (response.text ?? '').trim() };
-    }
-    throw err;
-  }
+  const response = await gemini!.models.generateContent(params);
+  return { text: (response.text ?? '').trim() };
+}
+
+/** Normalize SQLite datetime (UTC) to ISO string with Z so frontend parses correctly. */
+function toISOUTC(s: string | null | undefined): string | null {
+  if (s == null || s === '') return null;
+  const normalized = s.replace(' ', 'T');
+  return normalized.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(normalized) ? normalized : normalized + 'Z';
 }
 
 const app = express();
@@ -185,8 +176,7 @@ app.get('/api/students', requireAuth, (req: Request, res: Response) => {
 app.get('/api/admin/dashboard', requireAuth, requireAdmin, (_req: Request, res: Response) => {
   initDb();
   const stats = getDashboardStats();
-  // Anonymize recent activity so admin does not see student names
-  stats.recentActivity = stats.recentActivity.map((a) => ({ ...a, username: 'Student' }));
+  stats.recentActivity = stats.recentActivity.map((a) => ({ ...a, username: 'Student', assessed_at: toISOUTC(a.assessed_at) ?? a.assessed_at }));
   return res.json(stats);
 });
 
@@ -493,6 +483,7 @@ app.get('/api/slots/dates', requireAuth, (req: Request, res: Response) => {
   return res.json({ dates });
 });
 
+
 // --- Notifications (user sees own only) ---
 
 /** GET /api/notifications – list current user's notifications */
@@ -501,7 +492,12 @@ app.get('/api/notifications', requireAuth, (req: Request, res: Response) => {
   const user = (req as Request & { user?: { userId: number } }).user;
   const unreadOnly = req.query.unreadOnly === 'true';
   const list = listNotificationsForUser(user!.userId, unreadOnly);
-  return res.json({ notifications: list });
+  const notifications = list.map((n) => ({
+    ...n,
+    created_at: toISOUTC(n.created_at) ?? n.created_at,
+    read_at: toISOUTC(n.read_at) ?? n.read_at,
+  }));
+  return res.json({ notifications });
 });
 
 /** GET /api/notifications/unread-count – for bell badge */
@@ -521,6 +517,14 @@ app.patch('/api/notifications/:id/read', requireAuth, (req: Request, res: Respon
   const ok = markNotificationRead(id, user!.userId);
   if (!ok) return res.status(404).json({ error: 'Notification not found or already read' });
   return res.json({ ok: true });
+});
+
+/** POST /api/notifications/read-all – mark all as read for current user */
+app.post('/api/notifications/read-all', requireAuth, (req: Request, res: Response) => {
+  initDb();
+  const user = (req as Request & { user?: { userId: number } }).user;
+  const count = markAllNotificationsRead(user!.userId);
+  return res.json({ ok: true, marked: count });
 });
 
 const ASSESSMENT_SYSTEM = `You are a mental health assessment assistant for a university wellness program. Based ONLY on the following conversation between a student and a support chatbot, produce a brief structured assessment.
@@ -630,7 +634,7 @@ app.post('/api/assessment', requireAuth, async (req: Request, res: Response) => 
   const prompt = `Conversation:\n\n${conversation.slice(0, 8000)}\n\nOutput the assessment as a JSON object with keys: risk_level, risk_score, concerns, ai_recommendation, keywords, trend.`;
 
   try {
-    const response = await gemini.models.generateContent({
+    const { text: rawText } = await generateContent({
       model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: ASSESSMENT_SYSTEM + '\n\n' + prompt }] }],
       config: {
@@ -640,7 +644,6 @@ app.post('/api/assessment', requireAuth, async (req: Request, res: Response) => 
         responseJsonSchema: ASSESSMENT_JSON_SCHEMA,
       },
     });
-    let rawText = (response.text ?? '').trim();
     if (!rawText) {
       return res.status(502).json({ error: 'Assessment failed', message: 'Empty response from Gemini' });
     }
@@ -769,7 +772,7 @@ app.post('/api/chat/opening', async (req: Request, res: Response) => {
     });
   }
   try {
-    const { text } = await generateContentWithRetry({
+    const { text } = await generateContent({
       model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: OPENING_PROMPT }] }],
       config: {
@@ -810,7 +813,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   ].filter((m) => m.parts[0]?.text !== undefined && m.parts[0].text !== null);
 
   try {
-    const { text } = await generateContentWithRetry({
+    const { text } = await generateContent({
       model: GEMINI_MODEL,
       contents,
       config: {

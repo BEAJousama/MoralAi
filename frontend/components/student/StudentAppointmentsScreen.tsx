@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAppointments, updateAppointment, type Appointment } from '../../services/authService';
 import { Card } from '../Card';
 import { Button } from '../Button';
@@ -7,15 +7,17 @@ import { Calendar, ArrowLeft, Clock, User, Pencil, Trash2, Loader2 } from 'lucid
 interface StudentAppointmentsScreenProps {
   authToken: string | null;
   onBack: () => void;
+  focusAppointmentId?: number | null;
 }
 
-export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps> = ({ authToken, onBack }) => {
+export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps> = ({ authToken, onBack, focusAppointmentId }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(!!authToken);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [rescheduleAt, setRescheduleAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const focusRef = useRef<HTMLDivElement>(null);
 
   const load = () => {
     if (!authToken) return;
@@ -33,6 +35,12 @@ export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps>
   const now = new Date().toISOString();
   const scheduled = appointments.filter((a) => a.status === 'scheduled' && a.scheduled_at >= now);
   const past = appointments.filter((a) => a.status !== 'scheduled' || a.scheduled_at < now);
+
+  useEffect(() => {
+    if (focusAppointmentId != null && focusRef.current && appointments.some((a) => a.id === focusAppointmentId)) {
+      focusRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [focusAppointmentId, appointments]);
 
   const openReschedule = (a: Appointment) => {
     setEditingId(a.id);
@@ -70,7 +78,7 @@ export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps>
 
   return (
     <div className="min-h-screen bg-cream-bg">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+      <header className="bg-white border-b border-gray-100 fixed top-0 left-0 right-0 z-10 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={onBack}
@@ -86,7 +94,7 @@ export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-2xl mx-auto px-4 pt-20 pb-6 transition-all duration-300">
         {loading ? (
           <div className="flex items-center justify-center py-12 gap-2 text-gentleBlue-text">
             <Loader2 size={24} className="animate-spin" />
@@ -111,7 +119,7 @@ export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps>
                 <h2 className="text-sm font-semibold text-gentleBlue-text uppercase tracking-wider mb-3">Upcoming</h2>
                 <ul className="space-y-3">
                   {scheduled.map((a) => (
-                    <li key={a.id}>
+                    <li key={a.id} ref={focusAppointmentId === a.id ? focusRef : undefined} className={focusAppointmentId === a.id ? 'ring-2 ring-sage ring-offset-2 rounded-2xl' : ''}>
                       <Card className="!p-4">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                           <div className="min-w-0">
@@ -177,7 +185,7 @@ export const StudentAppointmentsScreen: React.FC<StudentAppointmentsScreenProps>
                 <h2 className="text-sm font-semibold text-gentleBlue-text uppercase tracking-wider mb-3">Past</h2>
                 <ul className="space-y-2">
                   {past.slice(0, 20).map((a) => (
-                    <li key={a.id} className="flex items-center gap-3 py-2 text-sm text-gentleBlue-text border-b border-gray-100 last:border-0">
+                    <li key={a.id} ref={focusAppointmentId === a.id ? focusRef : undefined} className={`flex items-center gap-3 py-2 text-sm text-gentleBlue-text border-b border-gray-100 last:border-0 ${focusAppointmentId === a.id ? 'ring-2 ring-sage ring-offset-2 rounded-lg' : ''}`}>
                       <Clock size={14} />
                       {new Date(a.scheduled_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                       <span className="capitalize text-charcoal">{a.type}</span>

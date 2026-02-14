@@ -174,8 +174,8 @@ export const RequestAppointmentModal: React.FC<RequestAppointmentModalProps> = (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <h2 className="text-lg font-semibold text-charcoal flex items-center gap-2">
             <Calendar size={22} className="text-sage" />
             Request an appointment
@@ -184,7 +184,8 @@ export const RequestAppointmentModal: React.FC<RequestAppointmentModalProps> = (
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 overflow-y-auto">
+          <div className="p-4 space-y-4">
           <p className="text-sm text-gentleBlue-text">
             Choose type and provider, then pick a date and an available slot. You’ll get a confirmation in notifications.
           </p>
@@ -338,6 +339,7 @@ export const RequestAppointmentModal: React.FC<RequestAppointmentModalProps> = (
             <Button type="submit" disabled={submitting || !selectedSlot} className="flex-1">
               {submitting ? <Loader2 size={20} className="animate-spin mx-auto" /> : 'Request appointment'}
             </Button>
+          </div>
           </div>
         </form>
       </div>

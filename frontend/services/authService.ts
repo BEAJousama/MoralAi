@@ -411,6 +411,16 @@ export async function getUnreadNotificationCount(token: string): Promise<number>
   return typeof data?.count === 'number' ? data.count : 0;
 }
 
+export async function markAllNotificationsRead(token: string): Promise<number> {
+  const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.message || data?.error || 'Failed to clear notifications');
+  return typeof data?.marked === 'number' ? data.marked : 0;
+}
+
 export async function markNotificationRead(token: string, id: number): Promise<void> {
   const res = await fetch(`${API_BASE}/api/notifications/${id}/read`, {
     method: 'PATCH',

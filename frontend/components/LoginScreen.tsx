@@ -115,9 +115,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
         {/* Form */}
         <div className="p-8">
-          {activeTab === 'ADMIN' && (
+          {/* {activeTab === 'ADMIN' && (
             <p className="text-sm text-gray-500 mb-4 -mt-1">View registered students and their assessments.</p>
-          )}
+          )} */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-charcoal mb-2">
@@ -212,12 +212,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               </p>
             )}
 
-            {activeTab === 'ADMIN' && (
+            {/* {activeTab === 'ADMIN' && (
               <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-xs text-center text-gray-500 font-medium mb-2 uppercase tracking-wide">Default admin</p>
                 <p className="text-xs text-center text-charcoal">Username: admin · Password: password</p>
               </div>
-            )}
+            )} */}
           </form>
         </div>
       </Card>

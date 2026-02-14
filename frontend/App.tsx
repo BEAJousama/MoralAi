@@ -10,6 +10,8 @@ import { CounselorsSection } from './components/admin/CounselorsSection';
 import { CounselorDashboard } from './components/counselor/CounselorDashboard';
 import { RequestAppointmentModal } from './components/student/RequestAppointmentModal';
 import { StudentAppointmentsScreen } from './components/student/StudentAppointmentsScreen';
+import { StudentReportsScreen } from './components/student/StudentReportsScreen';
+import type { NotificationNavigateView } from './components/student/NotificationsScreen';
 import type { AuthUser, AssessmentResult } from './services/authService';
 import { LogOut, Bell } from 'lucide-react';
 import { getUnreadNotificationCount } from './services/authService';
@@ -17,7 +19,7 @@ import { getUnreadNotificationCount } from './services/authService';
 const AUTH_STORAGE_KEY = 'moralai_auth';
 
 type Role = 'STUDENT' | 'ADMIN' | 'COUNSELOR' | null;
-type View = 'LOGIN' | 'WELCOME' | 'CHAT' | 'RESULTS' | 'PLAN' | 'NOTIFICATIONS' | 'STUDENT_APPOINTMENTS' | 'ADMIN_DASHBOARD' | 'COUNSELOR_DASHBOARD';
+type View = 'LOGIN' | 'WELCOME' | 'CHAT' | 'RESULTS' | 'PLAN' | 'NOTIFICATIONS' | 'STUDENT_APPOINTMENTS' | 'STUDENT_REPORTS' | 'ADMIN_DASHBOARD' | 'COUNSELOR_DASHBOARD';
 
 function loadStoredAuth(): { token: string; user: AuthUser; role: Role } | null {
   try {
@@ -58,6 +60,7 @@ const App: React.FC = () => {
   const [currentAssessment, setCurrentAssessment] = useState<AssessmentResult | null>(null);
   const [adminUnreadCount, setAdminUnreadCount] = useState(0);
   const [showRequestAppointmentModal, setShowRequestAppointmentModal] = useState(false);
+  const [focusAppointmentId, setFocusAppointmentId] = useState<number | null>(null);
   const notificationsReturnViewRef = useRef<View>('WELCOME');
 
   const refreshAdminUnreadCount = useCallback(() => {
@@ -131,6 +134,7 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             onOpenNotifications={() => openNotifications('WELCOME')}
             onOpenAppointments={() => setCurrentView('STUDENT_APPOINTMENTS')}
+            onOpenReports={() => setCurrentView('STUDENT_REPORTS')}
           />
         );
 
@@ -138,7 +142,17 @@ const App: React.FC = () => {
         return (
           <StudentAppointmentsScreen
             authToken={authToken}
-            onBack={() => setCurrentView('WELCOME')}
+            onBack={() => { setCurrentView('WELCOME'); setFocusAppointmentId(null); }}
+            focusAppointmentId={focusAppointmentId}
+          />
+        );
+
+      case 'STUDENT_REPORTS':
+        return (
+          <StudentReportsScreen
+            authToken={authToken}
+            onBack={() => { setCurrentView('WELCOME'); setFocusAppointmentId(null); }}
+            focusAppointmentId={focusAppointmentId}
           />
         );
 
@@ -147,6 +161,10 @@ const App: React.FC = () => {
           <NotificationsScreen
             authToken={authToken}
             onBack={closeNotifications}
+            onNotificationNavigate={userRole === 'STUDENT' ? (view, appointmentId) => {
+              setFocusAppointmentId(appointmentId);
+              setCurrentView(view);
+            } : undefined}
           />
         );
         
@@ -205,8 +223,8 @@ const App: React.FC = () => {
       case 'ADMIN_DASHBOARD':
         return (
           <div className="min-h-screen bg-gray-50 pb-12 overflow-x-hidden">
-            {/* Admin Header - responsive */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+            {/* Admin Header - fixed */}
+            <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-20 shadow-sm">
               <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center min-w-0 flex-1">
                   <span className="text-base sm:text-xl font-bold text-charcoal truncate">MoraLai Admin</span>
@@ -243,7 +261,7 @@ const App: React.FC = () => {
               </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8 animate-fade-in">
+            <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-4 sm:pb-8 space-y-6 sm:space-y-8 animate-fade-in transition-all duration-300">
               <DashboardOverview authToken={authToken} />
               <CounselorsSection authToken={authToken} />
             </main>
