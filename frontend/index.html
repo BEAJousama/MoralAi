@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoraLai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              sage: {
+                DEFAULT: '#A8B89F',
+                dark: '#96A68D',
+                light: '#D4E4D8',
+                50: '#F4F7F5',
+              },
+              cream: {
+                DEFAULT: '#F5F1E8',
+                dark: '#E0DDD6',
+                light: '#FAFAF8',
+                bg: '#F0EDE5',
+              },
+              gentleBlue: {
+                DEFAULT: '#7BA3C7',
+                text: '#5A6C7D',
+                light: '#8A9BA8',
+              },
+              warmCoral: {
+                DEFAULT: '#E89F8D',
+                risk: '#E88476',
+                bg: '#FFF4F2',
+                text: '#C94A3F',
+              },
+              lavender: {
+                DEFAULT: '#B8A5D1',
+                light: '#F3F0F8',
+              },
+              amber: {
+                risk: '#F4B860',
+                bg: '#FFF4E5',
+                text: '#B87503',
+              },
+              mint: {
+                risk: '#88C5A1',
+                bg: '#E8F5ED',
+                text: '#3A7D4F',
+              },
+              charcoal: '#2C3E50',
+            },
+            boxShadow: {
+              soft: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              medium: '0 4px 16px rgba(0, 0, 0, 0.08)',
+              heavy: '0 8px 24px rgba(0, 0, 0, 0.12)',
+              glow: '0 0 0 3px rgba(168, 184, 159, 0.1)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #FAFAF8;
+        color: #2C3E50;
+      }
+      /* Custom scrollbar for cleaner look */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #E0DDD6;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #A8B89F;
+      }
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "framer-motion": "https://esm.sh/framer-motion@^12.34.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

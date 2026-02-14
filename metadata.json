@@ -1,0 +1,7 @@
+{
+  "name": "MoraLai",
+  "description": "A dual-platform mental health application featuring a student-facing AI companion and an admin dashboard for risk monitoring.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

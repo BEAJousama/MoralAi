@@ -1,0 +1,11 @@
+{
+  "name": "mindadapt-ai",
+  "private": true,
+  "description": "MoraLai – frontend in frontend/, backend in backend/",
+  "scripts": {
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "frontend:dev": "cd frontend && npm run dev",
+    "backend:dev": "cd backend && npm run dev"
+  }
+}
