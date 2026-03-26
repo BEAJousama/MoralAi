@@ -85,7 +85,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps> = ({ authToken, r
   };
 
   const handleDelete = async (id: number) => {
-    if (!authToken || !window.confirm('Delete this appointment? The student will not be notified of the cancellation.')) return;
+    if (!authToken || !window.confirm('Delete this appointment? The employee will not be notified of the cancellation.')) return;
     setDeletingId(id);
     try {
       await deleteAppointment(authToken, id);
@@ -222,7 +222,7 @@ export const AppointmentsList: React.FC<AppointmentsListProps> = ({ authToken, r
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-charcoal mb-1">Provider / notes (for student)</label>
+                <label className="block text-xs font-medium text-charcoal mb-1">Provider / notes (for employee)</label>
                 <input
                   type="text"
                   value={editForm.provider_or_notes}

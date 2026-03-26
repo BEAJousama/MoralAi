@@ -11,15 +11,14 @@ import { CounselorDashboard } from './components/counselor/CounselorDashboard';
 import { RequestAppointmentModal } from './components/student/RequestAppointmentModal';
 import { StudentAppointmentsScreen } from './components/student/StudentAppointmentsScreen';
 import { StudentReportsScreen } from './components/student/StudentReportsScreen';
-import type { NotificationNavigateView } from './components/student/NotificationsScreen';
 import type { AuthUser, AssessmentResult } from './services/authService';
 import { LogOut, Bell } from 'lucide-react';
 import { getUnreadNotificationCount } from './services/authService';
 
 const AUTH_STORAGE_KEY = 'moralai_auth';
 
-type Role = 'STUDENT' | 'ADMIN' | 'COUNSELOR' | null;
-type View = 'LOGIN' | 'WELCOME' | 'CHAT' | 'RESULTS' | 'PLAN' | 'NOTIFICATIONS' | 'STUDENT_APPOINTMENTS' | 'STUDENT_REPORTS' | 'ADMIN_DASHBOARD' | 'COUNSELOR_DASHBOARD';
+type Role = 'EMPLOYEE' | 'ADMIN' | 'COUNSELOR' | null;
+type View = 'LOGIN' | 'WELCOME' | 'CHAT' | 'RESULTS' | 'PLAN' | 'NOTIFICATIONS' | 'EMPLOYEE_APPOINTMENTS' | 'EMPLOYEE_REPORTS' | 'ADMIN_DASHBOARD' | 'COUNSELOR_DASHBOARD';
 
 function loadStoredAuth(): { token: string; user: AuthUser; role: Role } | null {
   try {
@@ -27,7 +26,7 @@ function loadStoredAuth(): { token: string; user: AuthUser; role: Role } | null 
     if (!raw) return null;
     const data = JSON.parse(raw) as { token?: string; user?: AuthUser; role?: string };
     if (!data?.token || !data?.user?.id || !data?.user?.username || !data?.user?.role) return null;
-    const role = data.role === 'ADMIN' ? 'ADMIN' : data.role === 'COUNSELOR' ? 'COUNSELOR' : data.role === 'STUDENT' ? 'STUDENT' : null;
+    const role = data.role === 'ADMIN' ? 'ADMIN' : data.role === 'COUNSELOR' ? 'COUNSELOR' : data.role === 'EMPLOYEE' ? 'EMPLOYEE' : null;
     if (!role) return null;
     return { token: data.token, user: data.user, role };
   } catch {
@@ -80,7 +79,7 @@ const App: React.FC = () => {
       setAuthToken(stored.token);
       setAuthUser(stored.user);
       setUserRole(stored.role);
-      if (stored.role === 'STUDENT') setCurrentView('WELCOME');
+      if (stored.role === 'EMPLOYEE') setCurrentView('WELCOME');
       else if (stored.role === 'COUNSELOR') setCurrentView('COUNSELOR_DASHBOARD');
       else setCurrentView('ADMIN_DASHBOARD');
     }
@@ -97,12 +96,12 @@ const App: React.FC = () => {
     setCurrentView(notificationsReturnViewRef.current);
   }, []);
 
-  const handleLogin = (role: 'STUDENT' | 'ADMIN' | 'COUNSELOR', token: string, user: AuthUser) => {
+  const handleLogin = (role: 'EMPLOYEE' | 'ADMIN' | 'COUNSELOR', token: string, user: AuthUser) => {
     setUserRole(role);
     setAuthToken(token);
     setAuthUser(user);
     saveAuth(token, user, role);
-    if (role === 'STUDENT') {
+    if (role === 'EMPLOYEE') {
       setCurrentView('WELCOME');
     } else if (role === 'COUNSELOR') {
       setCurrentView('COUNSELOR_DASHBOARD');
@@ -133,12 +132,12 @@ const App: React.FC = () => {
             onStart={() => setCurrentView('CHAT')}
             onLogout={handleLogout}
             onOpenNotifications={() => openNotifications('WELCOME')}
-            onOpenAppointments={() => setCurrentView('STUDENT_APPOINTMENTS')}
-            onOpenReports={() => setCurrentView('STUDENT_REPORTS')}
+            onOpenAppointments={() => setCurrentView('EMPLOYEE_APPOINTMENTS')}
+            onOpenReports={() => setCurrentView('EMPLOYEE_REPORTS')}
           />
         );
 
-      case 'STUDENT_APPOINTMENTS':
+      case 'EMPLOYEE_APPOINTMENTS':
         return (
           <StudentAppointmentsScreen
             authToken={authToken}
@@ -147,7 +146,7 @@ const App: React.FC = () => {
           />
         );
 
-      case 'STUDENT_REPORTS':
+      case 'EMPLOYEE_REPORTS':
         return (
           <StudentReportsScreen
             authToken={authToken}
@@ -161,7 +160,7 @@ const App: React.FC = () => {
           <NotificationsScreen
             authToken={authToken}
             onBack={closeNotifications}
-            onNotificationNavigate={userRole === 'STUDENT' ? (view, appointmentId) => {
+            onNotificationNavigate={userRole === 'EMPLOYEE' ? (view, appointmentId) => {
               setFocusAppointmentId(appointmentId);
               setCurrentView(view);
             } : undefined}
@@ -229,7 +228,7 @@ const App: React.FC = () => {
                 <div className="flex items-center min-w-0 flex-1">
                   <span className="text-base sm:text-xl font-bold text-charcoal truncate">MoraLai Admin</span>
                   <span className="hidden sm:inline mx-2 lg:mx-4 text-gray-300 shrink-0">|</span>
-                  <span className="hidden md:inline text-sm text-gray-500 truncate">University of Morocco</span>
+                  <span className="hidden md:inline text-sm text-gray-500 truncate">Wellness Program</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-4 shrink-0">
                     <button

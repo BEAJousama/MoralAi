@@ -16,7 +16,6 @@ export const StudentList: React.FC<StudentListProps> = ({
   authToken,
   filterRisk,
   onClearFilter,
-  onSelectStudent,
   onSelectApiStudent,
 }) => {
   const [registeredStudents, setRegisteredStudents] = useState<ApiStudent[]>([]);
@@ -51,10 +50,10 @@ export const StudentList: React.FC<StudentListProps> = ({
           <div className="min-w-0">
             <h2 className="text-base sm:text-lg font-bold text-charcoal flex items-center gap-2">
               <UserPlus size={20} className="text-sage shrink-0" />
-              Registered Students
+              Registered Employees
             </h2>
             <p className="text-sm text-gentleBlue-text mt-1">
-              {loading ? 'Loading...' : filterRisk ? `${displayed.length} high-risk (of ${registeredStudents.length} total)` : `${registeredStudents.length} student(s) registered`}
+              {loading ? 'Loading...' : filterRisk ? `${displayed.length} high-risk (of ${registeredStudents.length} total)` : `${registeredStudents.length} employee(s) registered`}
             </p>
           </div>
           {filterRisk && onClearFilter && (
@@ -88,7 +87,7 @@ export const StudentList: React.FC<StudentListProps> = ({
               {displayed.length === 0 && !loading && (
                 <tr>
                   <td colSpan={6} className="px-4 sm:px-6 py-6 sm:py-8 text-center text-gentleBlue-text">
-                    {filterRisk ? 'No high-risk students in the list.' : 'No registered students yet. Students can sign up from the login screen.'}
+                    {filterRisk ? 'No high-risk employees in the list.' : 'No registered employees yet. Employees can sign up from the login screen.'}
                   </td>
                 </tr>
               )}

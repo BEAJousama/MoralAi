@@ -4,7 +4,7 @@ import { Button } from '../Button';
 import { Heart, Send } from 'lucide-react';
 import { submitAssessmentForm, type AssessmentFormData, type AssessmentResult, type RiskLevel, type Trend } from '../../services/authService';
 
-const CONCERN_OPTIONS = ['Stress', 'Sleep', 'Mood', 'Relationships', 'Academic', 'Loneliness', 'Health', 'Other'];
+const CONCERN_OPTIONS = ['Stress', 'Sleep', 'Mood', 'Relationships', 'Work', 'Burnout', 'Loneliness', 'Health', 'Other'];
 
 interface AssessmentFormProps {
   authToken: string | null;
@@ -107,7 +107,7 @@ export const AssessmentForm: React.FC<AssessmentFormProps> = ({
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="A short note for yourself or your wellness team..."
+            placeholder="A short note for yourself or your HR team..."
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none resize-none"
             rows={3}
             maxLength={300}

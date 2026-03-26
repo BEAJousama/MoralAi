@@ -169,7 +169,7 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
 
       <main className="max-w-4xl mx-auto px-3 sm:px-6 pt-20 sm:pt-24 pb-4 sm:pb-8 space-y-6 sm:space-y-8 transition-all duration-300">
         <p className="text-gentleBlue-text">
-          Accept requests, reschedule, or mark appointments done. Your report is sent to the student only.
+          Accept requests, reschedule, or mark appointments done. Your report is sent to the employee only.
         </p>
 
         {loading ? (
@@ -232,7 +232,7 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
                         <p className="font-medium text-charcoal text-sm">
                           {new Date(a.scheduled_at).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
                         </p>
-                        <p className="text-sm text-gentleBlue-text">{a.student_username ?? `Student #${a.student_id}`}</p>
+                        <p className="text-sm text-gentleBlue-text">{a.student_username ?? `Employee #${a.student_id}`}</p>
                         <p className="text-xs text-gray-500 capitalize">{a.type}</p>
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0">
@@ -275,7 +275,7 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
                         </p>
                         <p className="text-sm text-gentleBlue-text flex items-center gap-1 mt-1">
                           <User size={14} className="shrink-0" />
-                          <span className="truncate">{a.student_username ?? `Student #${a.student_id}`}</span>
+                          <span className="truncate">{a.student_username ?? `Employee #${a.student_id}`}</span>
                         </p>
                         <p className="text-xs text-gray-500 capitalize mt-0.5">{a.type}</p>
                         {a.location && (
@@ -331,7 +331,7 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/40" onClick={() => !submitting && setRescheduleModal(null)}>
             <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-semibold text-lg text-charcoal mb-4">Reschedule</h3>
-              <p className="text-sm text-gentleBlue-text mb-2">{rescheduleModal.student_username ?? `Student #${rescheduleModal.student_id}`}</p>
+              <p className="text-sm text-gentleBlue-text mb-2">{rescheduleModal.student_username ?? `Employee #${rescheduleModal.student_id}`}</p>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-charcoal mb-1">New date & time</label>
                 <input
@@ -359,12 +359,12 @@ export const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ authToke
                 {outcomeModal.action === 'completed' ? 'Mark as done' : 'Mark as missed'}
               </h3>
               <p className="text-sm text-gentleBlue-text mb-4">
-                {outcomeModal.appointment.student_username ?? `Student #${outcomeModal.appointment.student_id}`} · {new Date(outcomeModal.appointment.scheduled_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                {outcomeModal.appointment.student_username ?? `Employee #${outcomeModal.appointment.student_id}`} · {new Date(outcomeModal.appointment.scheduled_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
               </p>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-charcoal mb-2 flex items-center gap-2">
                   <FileText size={16} className="text-sage" />
-                  Report (optional) – sent to the student only
+                  Report (optional) – sent to the employee only
                 </label>
                 <textarea
                   value={reportText}

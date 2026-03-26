@@ -175,7 +175,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ authToken,
               <div key={row.name}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="font-medium text-charcoal">{row.name}</span>
-                  <span className="text-gentleBlue-text">{row.count} students</span>
+                  <span className="text-gentleBlue-text">{row.count} employees</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">
                   <div className={`${row.color} h-2 rounded-full`} style={{ width: `${row.pct}%` }}></div>

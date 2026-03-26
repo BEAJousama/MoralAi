@@ -88,8 +88,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ authToken, onStart
           Welcome to MoraLai
         </h1>
         
-        <p className="text-gentleBlue-text text-lg mb-8 leading-relaxed">
-          A safe space to check in with yourself.
+            <p className="text-gentleBlue-text text-lg mb-8 leading-relaxed">
+          How are you feeling today?
           <br />
           <span className="text-sm mt-2 block opacity-80">
             • Completely anonymous • Your pace • Support when needed

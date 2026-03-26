@@ -20,7 +20,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, onClose }) 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
             <div>
-                <h2 className="text-xl font-bold text-charcoal">Student Profile: {student.id}</h2>
+                <h2 className="text-xl font-bold text-charcoal">Employee Profile: {student.id}</h2>
                 <span className="text-sm text-gentleBlue-text">{student.department} Department</span>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-charcoal transition-colors">

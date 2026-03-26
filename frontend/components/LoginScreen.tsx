@@ -7,11 +7,11 @@ import { login, register } from '../services/authService';
 import type { AuthUser } from '../services/authService';
 
 interface LoginScreenProps {
-  onLogin: (role: 'STUDENT' | 'ADMIN' | 'COUNSELOR', token: string, user: AuthUser) => void;
+  onLogin: (role: 'EMPLOYEE' | 'ADMIN' | 'COUNSELOR', token: string, user: AuthUser) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [activeTab, setActiveTab] = useState<'STUDENT' | 'ADMIN'>('STUDENT');
+  const [activeTab, setActiveTab] = useState<'EMPLOYEE' | 'ADMIN'>('EMPLOYEE');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +37,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     try {
       if (isRegisterMode) {
         const { user, token } = await register(username, password);
-        onLogin('STUDENT', token, user);
+        onLogin('EMPLOYEE', token, user);
         return;
       }
       const { user, token } = await login(username, password);
@@ -46,7 +46,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       } else if (user.role === 'counselor') {
         onLogin('COUNSELOR', token, user);
       } else {
-        onLogin('STUDENT', token, user);
+        onLogin('EMPLOYEE', token, user);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -55,7 +55,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     }
   };
 
-  const switchTab = (tab: 'STUDENT' | 'ADMIN') => {
+  const switchTab = (tab: 'EMPLOYEE' | 'ADMIN') => {
     setActiveTab(tab);
     setIsRegisterMode(false);
     setUsername('');
@@ -83,20 +83,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </div>
         </div>
 
-        {/* Tabs: Student Login | Admin Portal */}
+        {/* Tabs: Employee Login | HR Portal */}
         <div className="flex border-b border-gray-200 bg-gray-50/50">
           <button
             type="button"
-            onClick={() => switchTab('STUDENT')}
-            aria-pressed={activeTab === 'STUDENT'}
+            onClick={() => switchTab('EMPLOYEE')}
+            aria-pressed={activeTab === 'EMPLOYEE'}
             className={`flex-1 py-4 text-sm font-semibold flex items-center justify-center gap-2 transition-colors shrink-0 ${
-              activeTab === 'STUDENT'
+              activeTab === 'EMPLOYEE'
                 ? 'text-sage-dark border-b-2 border-sage-dark bg-white text-sage-dark shadow-sm'
                 : 'text-gray-500 hover:text-charcoal hover:bg-gray-100'
             }`}
           >
             <User size={18} aria-hidden />
-            Student Portal
+            Employee Portal
           </button>
           <button
             type="button"
@@ -121,14 +121,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-charcoal mb-2">
-                {activeTab === 'STUDENT' ? 'Student ID' : 'Username'}
+                {activeTab === 'EMPLOYEE' ? 'Employee ID' : 'Username'}
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-sage focus:ring-4 focus:ring-sage/10 outline-none transition-all"
-                placeholder={activeTab === 'STUDENT' ? 'Enter Student ID' : 'Enter Admin Username'}
+                placeholder={activeTab === 'EMPLOYEE' ? 'Enter Employee ID' : 'Enter Admin Username'}
                 required
               />
             </div>
@@ -192,7 +192,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               {isLoading ? (isRegisterMode ? 'Creating account...' : 'Signing in...') : isRegisterMode ? 'Register' : 'Login'}
             </Button>
 
-            {activeTab === 'STUDENT' && (
+            {activeTab === 'EMPLOYEE' && (
               <p className="text-center text-sm text-gentleBlue-text">
                 {isRegisterMode ? (
                   <>

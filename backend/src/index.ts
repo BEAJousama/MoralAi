@@ -6,6 +6,7 @@ import cors from 'cors';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 import {
   initDb,
   createStudent,
@@ -44,24 +45,82 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 // When running locally (cd backend && npm run dev), backend/.env overrides (e.g. ELEVENLABS_API_KEY)
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+// --- LLM Provider Setup ---
+// Set LLM_PROVIDER=ollama in .env to use local Llama via Ollama.
+// Default is Gemini if GEMINI_API_KEY is set.
+const LLM_PROVIDER = (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-pro';
-const gemini = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const gemini = LLM_PROVIDER === 'gemini' && GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+  : null;
+
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1';
+const ollamaClient = LLM_PROVIDER === 'ollama'
+  ? new OpenAI({ baseURL: OLLAMA_BASE_URL, apiKey: 'ollama' })
+  : null;
+
+const llmReady = gemini !== null || ollamaClient !== null;
+
+console.log(
+  `[LLM] provider=${LLM_PROVIDER} geminiModel=${gemini ? GEMINI_MODEL : '-'} ollamaModel=${ollamaClient ? OLLAMA_MODEL : '-'}`
+);
+
 /** User-facing message for chat/API errors (no technical details). */
 const CHAT_ERROR_USER_MESSAGE =
   "I'm on a little break right now — think of me as napping or on leave 🌙 Maybe I had too much coffee and need a reset. Try again in a minute, or use the form to complete your check-in. I'll be back soon!";
 
-/** Turn Gemini API errors into HTTP response; message is always user-friendly. */
-function geminiErrorToResponse(_err: unknown): { status: number; message: string } {
-  return { status: 500, message: CHAT_ERROR_USER_MESSAGE };
+/** Unified LLM params for both Gemini and Ollama. */
+interface LLMParams {
+  systemPrompt?: string;
+  messages: Array<{ role: 'user' | 'model'; text: string }>;
+  temperature?: number;
+  maxTokens?: number;
+  jsonMode?: boolean;
 }
 
-/** Call Gemini generateContent (single request, no retries). */
-async function generateContent(
-  params: Parameters<InstanceType<typeof GoogleGenAI>['models']['generateContent']>[0]
-): Promise<{ text: string }> {
-  const response = await gemini!.models.generateContent(params);
+/** Call the configured LLM (Gemini or Ollama/Llama). */
+async function generateContent(params: LLMParams): Promise<{ text: string }> {
+  const { systemPrompt, messages, temperature = 0.7, maxTokens = 1024, jsonMode = false } = params;
+
+  if (LLM_PROVIDER === 'ollama' && ollamaClient) {
+    const oMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+    if (systemPrompt) oMessages.push({ role: 'system', content: systemPrompt });
+    for (const m of messages) {
+      oMessages.push({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text });
+    }
+    // Note: not all Ollama models support response_format json_object — omit it and rely on prompt + parseAssessmentJson
+    const completion = await ollamaClient.chat.completions.create({
+      model: OLLAMA_MODEL,
+      messages: oMessages,
+      temperature,
+      max_tokens: maxTokens,
+    });
+    return { text: (completion.choices[0]?.message?.content ?? '').trim() };
+  }
+
+  // Gemini
+  const geminiContents = messages.map((m) => ({
+    role: m.role === 'model' ? 'model' as const : 'user' as const,
+    parts: [{ text: m.text }],
+  }));
+  const response = await gemini!.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: geminiContents,
+    config: {
+      systemInstruction: systemPrompt,
+      temperature,
+      maxOutputTokens: maxTokens,
+      ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+    },
+  });
   return { text: (response.text ?? '').trim() };
+}
+
+function llmErrorToResponse(_err: unknown): { status: number; message: string } {
+  return { status: 500, message: CHAT_ERROR_USER_MESSAGE };
 }
 
 /** Normalize SQLite datetime (UTC) to ISO string with Z so frontend parses correctly. */
@@ -87,6 +146,7 @@ function requireAuth(req: Request, res: Response, next: () => void) {
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized', message: 'Missing or invalid token' });
   }
+
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { userId: number; username: string; role: UserRole };
     (req as Request & { user?: typeof payload }).user = payload;
@@ -114,7 +174,7 @@ function requireCounselor(req: Request, res: Response, next: () => void) {
   next();
 }
 
-/** POST /api/auth/register – student only */
+/** POST /api/auth/register – employee only */
 app.post('/api/auth/register', (req: Request, res: Response) => {
   initDb();
   const { username, password } = req.body as { username?: string; password?: string };
@@ -142,7 +202,7 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
   }
 });
 
-/** POST /api/auth/login – student or admin */
+/** POST /api/auth/login – employee or admin */
 app.post('/api/auth/login', (req: Request, res: Response) => {
   initDb();
   const { username, password } = req.body as { username?: string; password?: string };
@@ -161,7 +221,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   return res.json({ user: { id: user.id, username: user.username, role: user.role }, token });
 });
 
-/** GET /api/students – counselors only (admin cannot see student names for privacy); returns registered students with latest assessment */
+/** GET /api/students – counselors only (admin cannot see employee names for privacy); returns registered employees with latest assessment */
 app.get('/api/students', requireAuth, (req: Request, res: Response) => {
   const user = (req as Request & { user?: { role: string } }).user;
   if (user?.role === 'admin') {
@@ -172,7 +232,7 @@ app.get('/api/students', requireAuth, (req: Request, res: Response) => {
   return res.json({ students });
 });
 
-/** GET /api/admin/dashboard – admin only, aggregate stats only (no student names); recent activity anonymized */
+/** GET /api/admin/dashboard – admin only, aggregate stats only (no employee names); recent activity anonymized */
 app.get('/api/admin/dashboard', requireAuth, requireAdmin, (_req: Request, res: Response) => {
   initDb();
   const stats = getDashboardStats();
@@ -527,7 +587,7 @@ app.post('/api/notifications/read-all', requireAuth, (req: Request, res: Respons
   return res.json({ ok: true, marked: count });
 });
 
-const ASSESSMENT_SYSTEM = `You are a mental health assessment assistant for a university wellness program. Based ONLY on the following conversation between a student and a support chatbot, produce a brief structured assessment.
+const ASSESSMENT_SYSTEM = `You are a mental health assessment assistant for a workplace wellness program. Based ONLY on the following conversation between an employee and a support chatbot, produce a brief structured assessment.
 
 Be conservative: if the conversation is brief or positive, use Low risk and a low score. Reserve High for clear signs of severe distress or crisis.`;
 
@@ -538,7 +598,7 @@ const ASSESSMENT_JSON_SCHEMA = {
     risk_level: { type: 'string', enum: ['Low', 'Medium', 'High'], description: 'Overall risk level' },
     risk_score: { type: 'number', description: '0-100, higher = more concern' },
     concerns: { type: 'array', items: { type: 'string' }, maxItems: 5, description: 'Short concern labels e.g. Academic stress' },
-    ai_recommendation: { type: 'string', description: 'One short sentence recommendation for the student' },
+    ai_recommendation: { type: 'string', description: 'One short sentence recommendation for the employee' },
     keywords: { type: 'array', items: { type: 'string' }, description: '3-6 relevant words or short phrases from the conversation' },
     trend: { type: 'string', enum: ['stable', 'increasing', 'decreasing'], description: 'How concern level appears to be changing' },
   },
@@ -610,11 +670,13 @@ function repairTruncatedAssessmentJson(jsonStr: string): AssessmentParsed | null
 /** POST /api/assessment – student only: submit chat and get AI evaluation, saved to DB */
 app.post('/api/assessment', requireAuth, async (req: Request, res: Response) => {
   const user = (req as Request & { user?: { userId: number; role: string } }).user;
+  console.log(`[POST /api/assessment] user role: ${user?.role}`);
   if (user?.role !== 'student') {
+    console.warn(`[POST /api/assessment] Forbidden – role is '${user?.role}', expected 'student'`);
     return res.status(403).json({ error: 'Forbidden', message: 'Students only' });
   }
-  if (!gemini) {
-    return res.status(503).json({ error: 'Assessment unavailable', message: 'GEMINI_API_KEY not set' });
+  if (!llmReady) {
+    return res.status(503).json({ error: 'Assessment unavailable', message: 'No LLM configured (set GEMINI_API_KEY or LLM_PROVIDER=ollama)' });
   }
   const { messages = [] } = req.body as { messages?: Array<{ role: string; text?: string; parts?: { text: string }[] }> };
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -623,7 +685,7 @@ app.post('/api/assessment', requireAuth, async (req: Request, res: Response) => 
   const conversation = messages
     .map((m) => {
       const text = m.parts?.[0]?.text ?? m.text ?? '';
-      const role = m.role === 'model' ? 'Assistant' : 'Student';
+      const role = m.role === 'model' ? 'Assistant' : 'Employee';
       return `${role}: ${text}`;
     })
     .join('\n\n');
@@ -631,26 +693,46 @@ app.post('/api/assessment', requireAuth, async (req: Request, res: Response) => 
     return res.status(400).json({ error: 'No conversation content' });
   }
 
-  const prompt = `Conversation:\n\n${conversation.slice(0, 8000)}\n\nOutput the assessment as a JSON object with keys: risk_level, risk_score, concerns, ai_recommendation, keywords, trend.`;
+  const prompt = `Conversation:\n\n${conversation.slice(0, 8000)}\n\nOutput ONLY a valid JSON object (no markdown, no explanation) with exactly these keys: risk_level (\"Low\"|\"Medium\"|\"High\"), risk_score (0-100), concerns (array of strings), ai_recommendation (string), keywords (array of strings), trend (\"stable\"|\"increasing\"|\"decreasing\").\n\nExample: {\"risk_level\":\"Low\",\"risk_score\":20,\"concerns\":[\"mild stress\"],\"ai_recommendation\":\"Schedule a break\",\"keywords\":[\"tired\"],\"trend\":\"stable\"}`;
+
+  const saveFallbackAssessment = () => {
+    const row = saveAssessment(
+      user!.userId,
+      'Low',
+      20,
+      [],
+      'Check in with your wellness team when convenient.',
+      [],
+      'stable'
+    );
+    return res.status(201).json({
+      assessment: {
+        id: row.id,
+        risk_level: row.risk_level,
+        risk_score: row.risk_score,
+        concerns: [],
+        ai_recommendation: row.ai_recommendation,
+        keywords: [],
+        trend: row.trend,
+        created_at: row.created_at,
+      },
+    });
+  };
 
   try {
     const { text: rawText } = await generateContent({
-      model: GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: ASSESSMENT_SYSTEM + '\n\n' + prompt }] }],
-      config: {
-        temperature: 0.3,
-        maxOutputTokens: 1024,
-        responseMimeType: 'application/json',
-        responseJsonSchema: ASSESSMENT_JSON_SCHEMA,
-      },
+      systemPrompt: ASSESSMENT_SYSTEM,
+      messages: [{ role: 'user', text: prompt }],
+      temperature: 0.3,
+      maxTokens: 1024,
+      jsonMode: false,
     });
-    if (!rawText) {
-      return res.status(502).json({ error: 'Assessment failed', message: 'Empty response from Gemini' });
-    }
+    console.log('[POST /api/assessment] raw LLM response:', rawText?.slice(0, 400));
+    if (!rawText) return saveFallbackAssessment();
     const parsed = parseAssessmentJson(rawText);
     if (!parsed) {
-      console.error('Assessment JSON parse failed. Raw response:', rawText?.slice(0, 800));
-      return res.status(502).json({ error: 'Assessment failed', message: 'Invalid assessment format' });
+      console.error('[POST /api/assessment] JSON parse failed. Raw:', rawText?.slice(0, 800));
+      return saveFallbackAssessment();
     }
     const riskLevel = (['Low', 'Medium', 'High'].includes(parsed.risk_level ?? '') ? parsed.risk_level : 'Low') as RiskLevel;
     const riskScore = Math.min(100, Math.max(0, Number(parsed.risk_score) || 0));
@@ -674,7 +756,7 @@ app.post('/api/assessment', requireAuth, async (req: Request, res: Response) => 
     });
   } catch (err) {
     console.error('Assessment error:', err);
-    const { status, message } = geminiErrorToResponse(err);
+    const { status, message } = llmErrorToResponse(err);
     return res.status(status).json({ error: 'Assessment failed', message });
   }
 });
@@ -730,29 +812,80 @@ app.post('/api/assessment/form', requireAuth, (req: Request, res: Response) => {
   }
 });
 
-const CHAT_SYSTEM = `You are MoraLai, a warm, empathetic mental health check-in companion for university students only (Morocco-focused).
+const CHAT_SYSTEM = `You are MoraLai, a warm, empathetic mental health check-in companion for employees in a workplace wellness program in Morocco. You speak authentic Moroccan Darija.
 
-LANGUAGE (strict priority):
-- Use Moroccan Darija (داريجة) first whenever possible. If the student writes in Darija or you are opening the conversation, reply in Darija.
-- If the student writes in French, reply in French.
-- If the student writes in English, reply in English.
-- When the student's language is unclear, prefer in this order: Moroccan Darija, then French, then English. Match their language once they have written at least one message.
+═══ LANGUAGE RULES (STRICT) ═══
+DEFAULT: Always open and reply in Moroccan Darija unless the user writes in French or English first.
+- User writes in Darija → reply in Darija
+- User writes in French → reply in French
+- User writes in English → reply in English
+- User mixes languages → match their dominant language
 
-SCOPE (strict):
-- Limit all conversation to the student's mental and physical wellness, stress, mood, sleep, workload, and campus life. Do not discuss unrelated topics. If the student goes off-topic, gently bring the focus back (in their language).
-- Your only role is to listen, validate, ask follow-up questions so we understand their real situation, and offer brief support. You do not give medical or legal advice.
+NEVER reply in Modern Standard Arabic (فصحى / MSA). NEVER reply in Egyptian dialect. Use MOROCCAN Darija only.
 
-FOLLOW-UP QUESTIONS (core behavior):
-- When a student is vague, ask one or two short follow-ups in their language before replying with advice. Use culturally relevant examples (e.g. exams, family, الدراسة، العائلة, études, stress).
-- When they mention something specific (e.g. sleep, exams, loneliness), gently probe once. Then validate and give a brief, supportive response.
-- Keep each message to one or two follow-up questions max so the student is not overwhelmed.
+═══ MOROCCAN DARIJA GUIDE ═══
+Darija mixes Arabic roots with French loanwords and has unique phonology. Use this vocabulary naturally:
 
-TONE:
-- Warm, conversational, non-judgmental (like a caring friend). Professional but not clinical or robotic.
-- Validate first, then ask or support. Keep responses concise (under 3 short paragraphs). Use soft emojis occasionally (🌿, 🌤️, 💙).
+GREETINGS & OPENERS:
+- "Labas?" / "La bas 3lik?" → How are you? (lit. no harm on you?)
+- "Kif dayr/dayra?" → How are you doing? (m/f)
+- "Kifash katḥess?" / "كيفاش كتحس؟" → How are you feeling?
+- "Wach kayen chi ḥaja fi balek?" / "واش كاين شي حاجة فبالك؟" → Is something on your mind?
+- "Salam!" / "Salam 3lik!" → Hello / Peace be upon you
 
-SAFETY:
-- If the student expresses severe distress or self-harm, gently encourage professional help while staying supportive. Do not act as a crisis or emergency service.`;
+FEELINGS & MOOD:
+- "Mzyan" / "مزيان" → Good / Fine
+- "Mshi mzyan" / "مشي مزيان" → Not good
+- "3ayyan/3ayyena" / "عيان" → Tired / Exhausted (m/f)
+- "Mherres/Mherrsa" → Stressed out / Worn down
+- "Mqellaq/Mqellaqa" / "مقلق" → Anxious / Worried (m/f)
+- "Msakin" → Struggling / In a tough spot
+- "Fel ḥal" → Doing okay
+- "Mraḥ" → Comfortable / At ease
+- "Khayef/Khayfa" → Scared / Afraid (m/f)
+- "Ferḥan/Ferḥana" → Happy (m/f)
+
+WORK & DAILY LIFE:
+- "Lkhedma" / "الخدمة" → Work / The job
+- "Lboss" / "Lmdir" → The boss / Manager
+- "Lflous" / "الفلوس" → Money
+- "L3yat" / "العياط" → Fatigue / Burnout
+- "Deadline" (French loanword, used as-is)
+- "Stress" (used as-is in Darija)
+- "Bghit nrtaḥ" → I want to rest
+- "Ma3endish wqt" → I have no time
+- "Khedma bzzaf" → Too much work
+- "Rasi dar dar" → My head is spinning (overwhelmed)
+
+USEFUL PHRASES:
+- "Waḥed lweqt" → At some point / lately
+- "Bhal bhal" → So-so / Same as usual
+- "Mashi mushkil" → No problem
+- "Wakha" → Okay / Alright
+- "Bghit nfahem" → I want to understand
+- "3qel 3lik" → I feel for you / I hear you
+- "Had shshy normal" → This is normal
+- "Rah kolshi gha ydur" → Everything will be fine
+
+EXAMPLE RESPONSES IN DARIJA:
+- Opening: "Salam! Labas 3lik? Kifash dayr nhar lyum fi lkhedma? 🌿"
+- Empathy: "3qel 3lik, had shshy sa3b. Wach had stress dyal lkhedma bda mn imta?"
+- Probe: "Wakha, fahmt. Wash katnam mezyan? L3yat li kayna, wach hiya mn lkhedma wella mn chi ḥaja okhra?"
+- Support: "Had lḥala li katṣef normal 3nd bzzzaf d nnas. Mhemm bash trtaḥ shwiya. 🌤️"
+
+═══ SCOPE (strict) ═══
+Only discuss: mental wellness, work stress, mood, sleep, workload, work-life balance.
+If off-topic: gently bring focus back in their language.
+No medical or legal advice.
+
+═══ BEHAVIOR ═══
+- Ask ONE follow-up at a time. Never overwhelm with multiple questions.
+- Validate first, then probe or support.
+- Keep replies short: 2–4 sentences max.
+- Use soft emojis occasionally: 🌿 🌤️ 💙 ☀️
+
+═══ SAFETY ═══
+If severe distress or self-harm: encourage professional help warmly. Never act as a crisis service.`;
 
 interface ChatHistoryItem {
   role: string;
@@ -760,12 +893,12 @@ interface ChatHistoryItem {
   text?: string;
 }
 
-/** Opening prompt: AI starts the conversation in Moroccan Darija (priority), then French, then English */
-const OPENING_PROMPT = `The student has just opened the chat. They are in Morocco. Start the conversation in Moroccan Darija (داريجة): greet them warmly and ask one short opening check-in question (e.g. how they're feeling today, what's on their mind, كيفاش كتحس اليوم، واش شي حاجة فبالك). Keep it to one short paragraph in Darija. Reply only with your opening message—no meta or placeholder text. If you are unsure about Darija, you may use French (e.g. Comment tu te sens aujourd'hui ?) as fallback, but prefer Darija.`;
+/** Opening prompt: AI starts the conversation in Moroccan Darija */
+const OPENING_PROMPT = `Write a short warm greeting in Moroccan Darija to open a workplace wellness check-in. Use authentic Moroccan Darija vocabulary like: "Salam!", "Labas 3lik?", "Kif dayr/dayra?", "Kifash katḥess?", "lkhedma", "nhar lyum". Ask ONE short question about how they are feeling today. Keep it to 1-2 sentences. Write ONLY the greeting — no explanation, no translation, no meta text. Example style: "Salam! Labas 3lik? Kifash dayr nhar lyum fi lkhedma? 🌿"`;
 
 /** POST /api/chat/opening - Get the AI's first message to start the conversation */
 app.post('/api/chat/opening', async (req: Request, res: Response) => {
-  if (!gemini) {
+  if (!llmReady) {
     return res.status(503).json({
       error: 'Chat unavailable',
       message: CHAT_ERROR_USER_MESSAGE,
@@ -773,26 +906,23 @@ app.post('/api/chat/opening', async (req: Request, res: Response) => {
   }
   try {
     const { text } = await generateContent({
-      model: GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: OPENING_PROMPT }] }],
-      config: {
-        systemInstruction: CHAT_SYSTEM,
-        temperature: 0.7,
-        maxOutputTokens: 256,
-      },
+      systemPrompt: CHAT_SYSTEM,
+      messages: [{ role: 'user', text: OPENING_PROMPT }],
+      temperature: 0.7,
+      maxTokens: 256,
     });
     return res.json({ text: text || "Salam 👋 بغيت نسمع منك، كيفاش كتحس اليوم؟ أنا هنا باش نسمع ليك." });
   } catch (err) {
-    console.error('Gemini /api/chat/opening error:', err);
-    const { status, message } = geminiErrorToResponse(err);
+    console.error('[/api/chat/opening] error:', err);
+    const { status, message } = llmErrorToResponse(err);
     return res.status(status).json({ error: 'Chat error', message });
   }
 });
 
-/** POST /api/chat - Gemini text chat */
+/** POST /api/chat - LLM text chat */
 app.post('/api/chat', async (req: Request, res: Response) => {
   console.log('[POST /api/chat] request received');
-  if (!gemini) {
+  if (!llmReady) {
     return res.status(503).json({
       error: 'Chat unavailable',
       message: CHAT_ERROR_USER_MESSAGE,
@@ -804,28 +934,25 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing or invalid newMessage' });
   }
 
-  const contents = [
-    ...(history as ChatHistoryItem[]).map((m) => ({
+  const messages: Array<{ role: 'user' | 'model'; text: string }> = [
+    ...(history as ChatHistoryItem[]).map((m): { role: 'user' | 'model'; text: string } => ({
       role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: (m.parts?.[0]?.text ?? m.text ?? '') as string }],
+      text: (m.parts?.[0]?.text ?? m.text ?? '') as string,
     })),
-    { role: 'user' as const, parts: [{ text: newMessage.trim() }] },
-  ].filter((m) => m.parts[0]?.text !== undefined && m.parts[0].text !== null);
+    { role: 'user' as const, text: newMessage.trim() },
+  ].filter((m) => m.text !== '');
 
   try {
     const { text } = await generateContent({
-      model: GEMINI_MODEL,
-      contents,
-      config: {
-        systemInstruction: CHAT_SYSTEM,
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-      },
+      systemPrompt: CHAT_SYSTEM,
+      messages,
+      temperature: 0.7,
+      maxTokens: 1024,
     });
     return res.json({ text: text || "I'm having a little trouble connecting right now, but I'm listening." });
   } catch (err) {
-    console.error('Gemini /api/chat error:', err);
-    const { status, message } = geminiErrorToResponse(err);
+    console.error('[/api/chat] error:', err);
+    const { status, message } = llmErrorToResponse(err);
     return res.status(status).json({ error: 'Chat error', message });
   }
 });

@@ -31,8 +31,11 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
     );
   }
 
-  const score = assessment.risk_score;
-  const riskStyle = riskColors[assessment.risk_level];
+  const score = assessment.risk_score ?? 0;
+  const normalizedLevel: RiskLevel = (['Low','Medium','High'].includes(assessment.risk_level) ? assessment.risk_level : 'Low') as RiskLevel;
+  const riskStyle = riskColors[normalizedLevel];
+  const concerns = Array.isArray(assessment.concerns) ? assessment.concerns : [];
+  const keywords = Array.isArray(assessment.keywords) ? assessment.keywords : [];
   
   return (
     <div className="min-h-screen bg-cream-bg p-4 md:p-8">
@@ -74,7 +77,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
                 </div>
             </div>
 
-            <h2 className={`text-xl font-semibold mb-2 ${riskStyle.text}`}>{riskStyle.label}</h2>
+            <h2 className={`text-xl font-semibold mb-2 ${riskStyle?.text}`}>{riskStyle?.label}</h2>
             <p className="text-gentleBlue-text max-w-sm mx-auto leading-relaxed">
                 {assessment.ai_recommendation}
             </p>
@@ -82,8 +85,8 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
 
         <h3 className="text-lg font-semibold text-charcoal mb-4">Key areas we noticed</h3>
         <div className="grid gap-4 mb-8">
-          {assessment.concerns.length > 0 ? (
-            assessment.concerns.map((concern, i) => (
+          {concerns.length > 0 ? (
+            concerns.map((concern, i) => (
               <Card key={i} className="flex items-center !p-4">
                 <div className="w-10 h-10 rounded-full bg-sage-50 flex items-center justify-center text-sage mr-4 shrink-0">
                   <Brain size={20} />
@@ -100,9 +103,9 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
             </Card>
           )}
         </div>
-        {assessment.keywords.length > 0 && (
+        {keywords.length > 0 && (
           <p className="text-sm text-gray-500 mb-6">
-            Themes: {assessment.keywords.join(', ')} · Trend: {assessment.trend}
+            Themes: {keywords.join(', ')} · Trend: {assessment.trend}
           </p>
         )}
 
@@ -129,14 +132,14 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
         <Card className="mt-8 !p-6 border-l-4 border-sage">
           <h3 className="text-lg font-semibold text-charcoal mb-2 flex items-center gap-2">
             <CheckCircle2 size={20} className="text-sage" />
-            {(assessment.risk_level === 'Low' || assessment.risk_level === 'Medium') ? 'Suggested solutions' : 'Follow-up for you'}
+            {(normalizedLevel === 'Low' || normalizedLevel === 'Medium') ? 'Suggested solutions' : 'Follow-up for you'}
           </h3>
-          {(assessment.risk_level === 'Low' || assessment.risk_level === 'Medium') && (
+          {(normalizedLevel === 'Low' || normalizedLevel === 'Medium') && (
             <p className="text-gentleBlue-text text-sm mb-4 leading-relaxed">
               Based on your check-in, our AI suggests: {assessment.ai_recommendation}
             </p>
           )}
-          {assessment.risk_level === 'High' && (
+          {normalizedLevel === 'High' && (
             <>
               <p className="text-gentleBlue-text text-sm mb-4">
                 It’s okay to ask for help. Reaching out is a sign of strength. Here are some next steps we suggest:
@@ -157,7 +160,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
               </ul>
             </>
           )}
-          {assessment.risk_level === 'Medium' && (
+          {normalizedLevel === 'Medium' && (
             <>
               <p className="text-gentleBlue-text text-sm mb-4">
                 You’re not alone. Here are a few things that often help:
@@ -178,7 +181,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({ assessment
               </ul>
             </>
           )}
-          {assessment.risk_level === 'Low' && (
+          {normalizedLevel === 'Low' && (
             <>
               <p className="text-gentleBlue-text text-sm mb-4">
                 Nice work checking in. A few ideas to keep the momentum:

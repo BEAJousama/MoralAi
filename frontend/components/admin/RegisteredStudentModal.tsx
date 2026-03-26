@@ -101,7 +101,7 @@ export const RegisteredStudentModal: React.FC<RegisteredStudentModalProps> = ({
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-xl font-bold text-charcoal">Registered student</h2>
+            <h2 className="text-xl font-bold text-charcoal">Registered employee</h2>
             <p className="text-sm text-gentleBlue-text">@{student.username} · ID {student.id}</p>
           </div>
           <button
@@ -161,11 +161,11 @@ export const RegisteredStudentModal: React.FC<RegisteredStudentModalProps> = ({
           ) : (
             <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 text-gentleBlue-text">
               <AlertCircle size={24} className="shrink-0" />
-              <p>This student has not completed a check-in yet. Assessment will appear here after they finish a chat session.</p>
+              <p>This employee has not completed a check-in yet. Assessment will appear here after they finish a chat session.</p>
             </div>
           )}
 
-          {/* Appointments for this student */}
+          {/* Appointments for this employee */}
           <div className="pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-charcoal flex items-center gap-2">
@@ -183,7 +183,7 @@ export const RegisteredStudentModal: React.FC<RegisteredStudentModalProps> = ({
             </div>
             {bookSuccess && (
               <div className="mb-3 p-3 rounded-lg bg-mint-risk/15 text-mint-risk text-sm font-medium">
-                Appointment booked. The student will be notified in the app.
+                Appointment booked. The employee will be notified in the app.
               </div>
             )}
             {showBookForm && authToken && (
@@ -245,7 +245,7 @@ export const RegisteredStudentModal: React.FC<RegisteredStudentModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-charcoal mb-1">Provider / notes for student (optional)</label>
+                  <label className="block text-xs font-medium text-charcoal mb-1">Provider / notes for employee (optional)</label>
                   <input
                     type="text"
                     placeholder="e.g. Dr. Smith, or instructions"
@@ -256,7 +256,7 @@ export const RegisteredStudentModal: React.FC<RegisteredStudentModalProps> = ({
                 </div>
                 {bookError && <p className="text-sm text-warmCoral-text">{bookError}</p>}
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Booking…' : 'Book and notify student'}
+                  {submitting ? 'Booking…' : 'Book and notify employee'}
                 </Button>
               </form>
             )}

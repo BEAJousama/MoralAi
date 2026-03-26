@@ -62,7 +62,7 @@ export const AppointmentsOverview: React.FC<AppointmentsOverviewProps> = ({ auth
                 </p>
                 <p className="text-sm text-gentleBlue-text flex items-center gap-1">
                   <User size={12} />
-                  {a.student_username ?? `Student #${a.student_id}`}
+                  {a.student_username ?? `Employee #${a.student_id}`}
                 </p>
                 <p className="text-xs text-gray-500 capitalize mt-0.5">{a.type}</p>
                 {a.location && (
