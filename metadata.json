@@ -1,6 +1,6 @@
 {
   "name": "MoraLai",
-  "description": "A dual-platform mental health application featuring a student-facing AI companion and an admin dashboard for risk monitoring.",
+  "description": "A dual-platform workplace mental health application featuring an employee-facing AI companion (Gemini or local Llama via Ollama), a counselor dashboard, and an admin panel for risk monitoring.",
   "requestFramePermissions": [
     "microphone"
   ]

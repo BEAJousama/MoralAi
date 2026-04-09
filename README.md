@@ -1,13 +1,13 @@
 # MoraLai
 
-A mental health check-in companion for university students. **Chat & assessment** use **Gemini**; **voice** (TTS/STT) uses **ElevenLabs**. Students can also complete a **form-based check-in** when the AI is unavailable. Data is stored in **SQLite** and visible in the admin panel.
+A workplace mental health check-in companion for employees. **Chat & assessment** support **Gemini** (cloud) or a **local Llama model via Ollama** (no API key required); **voice** (TTS/STT) uses **ElevenLabs**. Employees can also complete a **form-based check-in** when the AI is unavailable. Data is stored in **SQLite** and visible in the admin and counselor panels.
 
 ## Project structure
 
 | Path | Description |
 |------|-------------|
 | **`frontend/`** | React (Vite) app – login, chat, form fallback, assessment results, admin panel |
-| **`backend/`** | Express API (TypeScript) – auth, Gemini chat/assessment, form assessment, ElevenLabs TTS/STT, SQLite |
+| **`backend/`** | Express API (TypeScript) – auth, Gemini/Ollama chat/assessment, form assessment, ElevenLabs TTS/STT, SQLite |
 | **`docker-compose.yml`** | Runs backend + frontend; SQLite DB stored in a Docker volume |
 
 ---
@@ -23,7 +23,7 @@ A mental health check-in companion for university students. **Chat & assessment*
    ```
 
 2. **Edit `.env`** and set at least:
-   - `GEMINI_API_KEY` – [Google AI Studio](https://aistudio.google.com/apikey)
+   - `GEMINI_API_KEY` – [Google AI Studio](https://aistudio.google.com/apikey) *(or use Ollama instead, see below)*
    - `ELEVENLABS_API_KEY` – [ElevenLabs](https://elevenlabs.io)
    - `JWT_SECRET` – any long random string (e.g. `openssl rand -hex 32`)
 
@@ -74,11 +74,14 @@ Runs at **http://localhost:3000**. Set `VITE_API_BASE=http://localhost:4000` in 
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GEMINI_API_KEY` | Yes (for chat/assessment) | [Google AI Studio](https://aistudio.google.com/apikey) |
-| `ELEVENLABS_API_KEY` | Yes (for TTS/STT) | [ElevenLabs](https://elevenlabs.io) API key |
-| `JWT_SECRET` | Yes | Long random string for JWT signing (register/login, admin) |
-| `ELEVENLABS_VOICE_ID` | No | Default: `21m00Tcm4TlvDq8ikWAM` |
+| `LLM_PROVIDER` | No | `gemini` (default) or `ollama` for local Llama |
+| `GEMINI_API_KEY` | Yes (if using Gemini) | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
+| `OLLAMA_BASE_URL` | No | Ollama API base URL; default: `http://localhost:11434/v1` (use `http://host.docker.internal:11434/v1` inside Docker) |
+| `OLLAMA_MODEL` | No | Ollama model name; default: `llama3.1` |
+| `ELEVENLABS_API_KEY` | Yes (for TTS/STT) | [ElevenLabs](https://elevenlabs.io) API key |
+| `ELEVENLABS_VOICE_ID` | No | Default: `21m00Tcm4TlvDq8ikWAM` |
+| `JWT_SECRET` | Yes | Long random string for JWT signing (register/login, admin) |
 | `VITE_API_BASE` | No | Backend URL for frontend; leave empty when using Docker |
 
 ---
@@ -87,9 +90,10 @@ Runs at **http://localhost:3000**. Set `VITE_API_BASE=http://localhost:4000` in 
 
 - **Auth:** `POST /api/auth/register`, `POST /api/auth/login`
 - **Admin:** `GET /api/students`, `GET /api/admin/dashboard` (Bearer, admin only)
-- **Appointments:** `POST /api/appointments` (admin: book for student, notifies student in-app), `GET /api/appointments` (admin: all; student: own), `PATCH /api/appointments/:id` (admin)
+- **Counselors:** `GET /api/counselors`, `GET /api/counselors/:id/availability`, `POST /api/counselors/:id/availability` (counselor/admin)
+- **Appointments:** `POST /api/appointments` (admin: book for employee, notifies employee in-app), `GET /api/appointments` (admin: all; employee: own), `PATCH /api/appointments/:id` (admin)
 - **Notifications:** `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/:id/read`
-- **Chat:** `POST /api/chat` (Gemini), `POST /api/chat/opening` (first message)
+- **Chat:** `POST /api/chat` (Gemini or Ollama), `POST /api/chat/opening` (first message)
 - **Assessment:** `POST /api/assessment` (AI from chat), `POST /api/assessment/form` (form fallback)
 - **Voice:** `POST /api/tts` (ElevenLabs TTS), `POST /api/stt` (ElevenLabs Scribe)
 - **Health:** `GET /api/health`
@@ -99,4 +103,3 @@ Runs at **http://localhost:3000**. Set `VITE_API_BASE=http://localhost:4000` in 
 ## Deployment
 
 See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for how and where to deploy (VPS, Railway, Render, Fly.io, etc.) and production checklist.
-# MoralAi
